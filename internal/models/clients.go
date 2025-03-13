@@ -48,7 +48,10 @@ func (c *Client) ReadPump() {
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				fmt.Printf("unexpected close error: %v \n", err)
+				fmt.Printf("client disconnected: %s with username: %s \n", c.Conn.RemoteAddr().String(), c.Username)
 			}
+
+			break
 		}
 
 		// update last active time

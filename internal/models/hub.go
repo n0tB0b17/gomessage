@@ -25,7 +25,7 @@ func GetNewHUB(nc *nats.Conn) *Hub {
 		Clients:    make(map[string]*Client),
 		Register:   make(chan *Client),
 		Unregister: make(chan *Client),
-		Broadcast:  make(chan *Message),
+		Broadcast:  make(chan *Message, 100),
 		NatsConn:   nc,
 		Mu:         sync.RWMutex{},
 	}
@@ -48,7 +48,6 @@ func (h *Hub) Run() {
 			}
 
 			h.Broadcast <- joinMsg // Broadcast to all Clients
-			fmt.Printf("new client registered: %s \n", client.Id)
 
 		case client := <-h.Unregister: // when client unregisters
 			h.Mu.Lock()

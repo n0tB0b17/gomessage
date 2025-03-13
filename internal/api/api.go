@@ -28,8 +28,6 @@ func NewApiServer(port int, nats *nats.Conn, natAddr string) *APIServer {
 	}
 }
 
-// start api server
-
 func (a *APIServer) Start() error {
 	addr := fmt.Sprintf(":%d", a.Port)
 	router := mux.NewRouter()
@@ -41,7 +39,8 @@ func (a *APIServer) Start() error {
 		hub.Mu.RLock()
 		defer hub.Mu.RUnlock()
 
-		users := make([]string, len(hub.Clients))
+		users := make([]string, 0, len(hub.Clients))
+		fmt.Printf("Total side of hub's client is: %d \n", len(hub.Clients))
 		for _, clients := range hub.Clients {
 			users = append(users, clients.Username)
 		}

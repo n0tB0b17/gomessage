@@ -37,7 +37,6 @@ func ServeWS(h *models.Hub, w http.ResponseWriter, r *http.Request, natAddr stri
 		return
 	}
 
-	fmt.Printf("client conneted: %v \n", conn.RemoteAddr().String())
 	ns, err := nats.Connect(natAddr)
 	if err != nil {
 		fmt.Printf("error while connecting to nats server: %v \n", err)
@@ -47,9 +46,10 @@ func ServeWS(h *models.Hub, w http.ResponseWriter, r *http.Request, natAddr stri
 
 	username := r.URL.Query().Get("username")
 	if username == "" {
-		username = fmt.Sprintf("anonymous+|>%s", uuid.New().String())
+		username = fmt.Sprintf("anonymous+%s", uuid.New().String())
 	}
 
+	fmt.Printf("client conneted: %s with username: %s\n", conn.RemoteAddr().String(), username)
 	clientID := uuid.New().String()
 	client := &models.Client{
 		Hub:        h,
@@ -61,7 +61,8 @@ func ServeWS(h *models.Hub, w http.ResponseWriter, r *http.Request, natAddr stri
 		LastActive: time.Now(),
 	}
 
-	_, err = ns.Subscribe("chat.broadcast", func(msg *nats.Msg) {
+	_, err = ns.Subscribe("chat.Broadcast", func(msg *nats.Msg) {
+		fmt.Println("Received a chat.Broadcast message")
 		select {
 		case client.Send <- msg.Data:
 		default:
