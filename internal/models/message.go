@@ -3,9 +3,11 @@ package models
 import "time"
 
 var (
-	JOINED  string = "join"
-	LEFT           = "leave"
-	MESSAGE        = "message"
+	JOINED    string = "join"
+	LEFT             = "leave"
+	MESSAGE          = "message"
+	BROADCAST        = "broadcast"
+	DIRECT           = "direct"
 )
 
 type Message struct {

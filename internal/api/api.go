@@ -40,7 +40,6 @@ func (a *APIServer) Start() error {
 		defer hub.Mu.RUnlock()
 
 		users := make([]string, 0, len(hub.Clients))
-		fmt.Printf("Total side of hub's client is: %d \n", len(hub.Clients))
 		for _, clients := range hub.Clients {
 			users = append(users, clients.Username)
 		}
@@ -65,7 +64,6 @@ func (a *APIServer) Start() error {
 	})
 
 	handler := c.Handler(router)
-
 	a.s = &http.Server{
 		Addr:    addr,
 		Handler: handler,

@@ -82,7 +82,6 @@ func ServeWS(h *models.Hub, w http.ResponseWriter, r *http.Request, natAddr stri
 			return
 		}
 
-		// only process message is client is sender or recipient
 		if message.Sender == client.Username || message.Recipient == client.Username {
 			select {
 			case client.Send <- msg.Data:
@@ -99,7 +98,6 @@ func ServeWS(h *models.Hub, w http.ResponseWriter, r *http.Request, natAddr stri
 	}
 
 	client.Hub.Register <- client
-
 	go client.ReadPump()
 	go client.WritePump()
 }
