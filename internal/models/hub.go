@@ -84,7 +84,7 @@ func (h *Hub) Run() {
 			if msg.Type == MESSAGE && msg.Recipient != "" {
 				// send message to specific recipient
 				h.mu.RLock()
-				if client, ok := h.clients[msg.Recipient]; ok {
+				if client, ok := h.clients[msg.Recipient]; ok { // issue here, as we are using msg.Recipient as key instead of id
 					select {
 					case client.send <- docs:
 					default:
@@ -94,7 +94,7 @@ func (h *Hub) Run() {
 				}
 
 				// send to sender as confirmation
-				if client, ok := h.clients[msg.Sender]; ok {
+				if client, ok := h.clients[msg.Sender]; ok { // issue here, as we are using msg.Sender as key instead of id
 					select {
 					case client.send <- docs:
 					default:
