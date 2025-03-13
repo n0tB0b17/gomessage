@@ -19,32 +19,32 @@ const (
 )
 
 type Client struct {
-	hub        *Hub
-	conn       *websocket.Conn
-	send       chan []byte
-	id         string
-	username   string
-	natsConn   *nats.Conn
-	lastActive time.Time
-	mu         sync.Mutex
+	Hub        *Hub
+	Conn       *websocket.Conn
+	Send       chan []byte
+	Id         string
+	Username   string
+	NatsConn   *nats.Conn
+	LastActive time.Time
+	Mu         sync.Mutex
 }
 
 func (c *Client) ReadPump() {
 	defer func() {
-		c.hub.unregister <- c
-		c.conn.Close()
+		c.Hub.Unregister <- c
+		c.Conn.Close()
 	}()
 
-	c.conn.SetReadLimit(maxMessageSize)
-	c.conn.SetReadDeadline(time.Now().Add(pongWait))
-	c.conn.SetPongHandler(func(string) error {
-		c.conn.SetReadDeadline(time.Now().Add(pongWait))
+	c.Conn.SetReadLimit(maxMessageSize)
+	c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+	c.Conn.SetPongHandler(func(string) error {
+		c.Conn.SetReadDeadline(time.Now().Add(pongWait))
 		return nil
 	})
 
 	for {
 		// read raw message
-		_, msg, err := c.conn.ReadMessage()
+		_, msg, err := c.Conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				fmt.Printf("unexpected close error: %v \n", err)
@@ -52,9 +52,9 @@ func (c *Client) ReadPump() {
 		}
 
 		// update last active time
-		c.mu.Lock()
-		c.lastActive = time.Now()
-		c.mu.Unlock()
+		c.Mu.Lock()
+		c.LastActive = time.Now()
+		c.Mu.Unlock()
 
 		// parse message
 		var parsedMessage Message
@@ -65,7 +65,7 @@ func (c *Client) ReadPump() {
 
 		// set message meta-data
 		parsedMessage.ID = uuid.New().String()
-		parsedMessage.Sender = c.id
+		parsedMessage.Sender = c.Id
 		parsedMessage.Timestamp = time.Now()
 
 		// handle different message types, ie > client-to-client or client-to-broadcast
@@ -73,19 +73,60 @@ func (c *Client) ReadPump() {
 		case MESSAGE:
 			if parsedMessage.Recipient != "" {
 				docs, _ := json.Marshal(parsedMessage)
-				if err := c.natsConn.Publish("chat.direct", docs); err != nil {
+				if err := c.NatsConn.Publish("chat.direct", docs); err != nil {
 					fmt.Printf("error while publishing message to subject: 'chat.direct' %v \n", err)
 				}
 			} else {
 				// broadcast message
-				c.hub.broadcast <- &parsedMessage
+				c.Hub.Broadcast <- &parsedMessage
 			}
 		default:
-			c.hub.broadcast <- &parsedMessage
+			c.Hub.Broadcast <- &parsedMessage
 		}
 	}
 }
 
 func (c *Client) WritePump() {
+	newTicker := time.NewTicker(pingPerid)
+	defer func() {
+		newTicker.Stop()
+		c.Conn.Close()
+	}()
 
+	for {
+		select {
+		case message, ok := <-c.Send:
+			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if !ok {
+				// Hub closed
+				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+
+			writer, err := c.Conn.NextWriter(websocket.TextMessage)
+			if err != nil {
+				return
+			}
+
+			writer.Write(message)
+			n := len(c.Send)
+
+			// add pending messages to the current message
+			for i := 0; i < n; i++ {
+				writer.Write([]byte{'\n'})
+				writer.Write(<-c.Send)
+			}
+
+			// close writer
+			if err := writer.Close(); err != nil {
+				return
+			}
+
+		case <-newTicker.C:
+			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				return
+			}
+		}
+	}
 }

@@ -9,10 +9,18 @@ import (
 	"time"
 
 	"github.com/n0tB0b17/gomessage/internal/api"
+	"github.com/nats-io/nats.go"
 )
 
 func main() {
-	server := api.NewApiServer(8888)
+	ns, err := nats.Connect("nats://localhost:4222")
+	if err != nil {
+		fmt.Printf("error while connecting to nats instance: %v \n", err)
+		return
+	}
+	defer ns.Close()
+
+	server := api.NewApiServer(8888, ns)
 	if err := server.Start(); err != nil {
 		panic(err)
 	}

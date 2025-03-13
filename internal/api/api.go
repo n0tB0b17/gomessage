@@ -2,22 +2,27 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/n0tB0b17/gomessage/internal/models"
+	"github.com/nats-io/nats.go"
 	"github.com/rs/cors"
 )
 
 type APIServer struct {
 	Port int
 	s    *http.Server
+	nats *nats.Conn
 }
 
-func NewApiServer(port int) *APIServer {
+func NewApiServer(port int, nats *nats.Conn) *APIServer {
 	return &APIServer{
 		Port: port,
+		nats: nats,
 	}
 }
 
@@ -26,7 +31,30 @@ func NewApiServer(port int) *APIServer {
 func (a *APIServer) Start() error {
 	addr := fmt.Sprintf(":%d", a.Port)
 	router := mux.NewRouter()
+	hub := models.GetNewHUB(a.nats)
+	go hub.Run()
+
 	router.HandleFunc("/api/v1/message", TestAPIHandler).Methods("GET")
+	router.HandleFunc("/api/v1/getUsers", func(w http.ResponseWriter, r *http.Request) {
+		hub.Mu.RLock()
+		defer hub.Mu.RUnlock()
+
+		users := make([]string, len(hub.Clients))
+		for _, clients := range hub.Clients {
+			users = append(users, clients.Username)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		resp := map[string]interface{}{
+			"count": len(users),
+			"users": users,
+		}
+
+		json.NewEncoder(w).Encode(resp)
+	}).Methods("GET")
+	router.HandleFunc("/api/v1/message/ws", func(w http.ResponseWriter, r *http.Request) {
+		ServeWS(hub, w, r)
+	})
 
 	c := cors.New(cors.Options{
 		AllowedOrigins: []string{"*"},
@@ -42,6 +70,7 @@ func (a *APIServer) Start() error {
 	}
 
 	fmt.Printf("Starting API server on address: %s \n", addr)
+	fmt.Printf("Connected Nats server name is: %s \n", a.nats.ConnectedServerName())
 	return a.s.ListenAndServe()
 }
 
