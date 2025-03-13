@@ -14,15 +14,17 @@ import (
 )
 
 type APIServer struct {
-	Port int
-	s    *http.Server
-	nats *nats.Conn
+	Port    int
+	NatAddr string
+	s       *http.Server
+	nats    *nats.Conn
 }
 
-func NewApiServer(port int, nats *nats.Conn) *APIServer {
+func NewApiServer(port int, nats *nats.Conn, natAddr string) *APIServer {
 	return &APIServer{
-		Port: port,
-		nats: nats,
+		Port:    port,
+		NatAddr: natAddr,
+		nats:    nats,
 	}
 }
 
@@ -34,8 +36,8 @@ func (a *APIServer) Start() error {
 	hub := models.GetNewHUB(a.nats)
 	go hub.Run()
 
-	router.HandleFunc("/api/v1/message", TestAPIHandler).Methods("GET")
-	router.HandleFunc("/api/v1/getUsers", func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/api/v1/status", TestAPIHandler).Methods("GET")
+	router.HandleFunc("/api/v1/users", func(w http.ResponseWriter, r *http.Request) {
 		hub.Mu.RLock()
 		defer hub.Mu.RUnlock()
 
@@ -52,8 +54,9 @@ func (a *APIServer) Start() error {
 
 		json.NewEncoder(w).Encode(resp)
 	}).Methods("GET")
+
 	router.HandleFunc("/api/v1/message/ws", func(w http.ResponseWriter, r *http.Request) {
-		ServeWS(hub, w, r)
+		ServeWS(hub, w, r, a.NatAddr)
 	})
 
 	c := cors.New(cors.Options{

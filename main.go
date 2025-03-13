@@ -13,14 +13,15 @@ import (
 )
 
 func main() {
-	ns, err := nats.Connect("nats://localhost:4222")
+	natAddr := "nats://192.168.1.125:4222"
+	ns, err := nats.Connect(natAddr)
 	if err != nil {
 		fmt.Printf("error while connecting to nats instance: %v \n", err)
 		return
 	}
 	defer ns.Close()
 
-	server := api.NewApiServer(8888, ns)
+	server := api.NewApiServer(8888, ns, natAddr)
 	if err := server.Start(); err != nil {
 		panic(err)
 	}

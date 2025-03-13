@@ -26,19 +26,19 @@ var upgrader = websocket.Upgrader{
 }
 
 func TestAPIHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Testing api handler")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Health check ok"))
 }
 
-func ServeWS(h *models.Hub, w http.ResponseWriter, r *http.Request) {
+func ServeWS(h *models.Hub, w http.ResponseWriter, r *http.Request, natAddr string) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		fmt.Printf("error while upgrading connection: %v \n", err)
 		return
 	}
 
-	ns, err := nats.Connect("nats://localhost:4222")
+	fmt.Printf("client conneted: %v \n", conn.RemoteAddr().String())
+	ns, err := nats.Connect(natAddr)
 	if err != nil {
 		fmt.Printf("error while connecting to nats server: %v \n", err)
 		conn.Close()
@@ -47,7 +47,7 @@ func ServeWS(h *models.Hub, w http.ResponseWriter, r *http.Request) {
 
 	username := r.URL.Query().Get("username")
 	if username == "" {
-		username = "anonymous" + uuid.New().String()
+		username = fmt.Sprintf("anonymous+|>%s", uuid.New().String())
 	}
 
 	clientID := uuid.New().String()
@@ -75,7 +75,7 @@ func ServeWS(h *models.Hub, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = ns.Subscribe("chat.dir	Subscribe(ect", func(msg *nats.Msg) {
+	_, err = ns.Subscribe("chat.direct", func(msg *nats.Msg) {
 		var message models.Message
 		if err := json.Unmarshal(msg.Data, &message); err != nil {
 			return
