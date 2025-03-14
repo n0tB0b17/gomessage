@@ -39,3 +39,58 @@ func NewUserStore(client *mongo.Client, dbName string) *UserStore {
 		collection: col,
 	}
 }
+
+func (us *UserStore) RegisterUser(ctx context.Context, user User) error {
+	_, err := us.collection.InsertOne(ctx, user)
+	if mongo.IsDuplicateKeyError(err) {
+		return fmt.Errorf("user already exists")
+	}
+
+	return nil
+}
+
+func (us *UserStore) GetUserByUsername(ctx context.Context, username string) (*User, error) {
+	var user User
+	resp := us.collection.FindOne(ctx, bson.M{"username": username}).Decode(&user)
+	if resp != nil {
+		if resp == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+
+		return nil, resp
+	}
+
+	return &user, nil
+}
+
+func (us *UserStore) UpdateUser(ctx context.Context, username string) error {
+	_, err := us.collection.UpdateOne(
+		ctx,
+		bson.M{"username": username},
+		bson.M{"$set": bson.M{"last_seen": time.Now()}},
+	)
+
+	return err
+}
+
+func (us *UserStore) ListAllUsers(ctx context.Context, limit, skip int64) ([]User, error) {
+	Opts := options.Find()
+	Opts.SetLimit(limit)
+	Opts.SetSkip(skip)
+
+	cursor, err := us.collection.Find(ctx, bson.M{}, Opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var users []User
+	if err := cursor.All(ctx, &users); err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
+func (us *UserStore) CountUserDocument(ctx context.Context) (int64, error) {
+	return us.collection.CountDocuments(ctx, bson.M{})
+}
