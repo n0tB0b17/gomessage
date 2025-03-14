@@ -43,11 +43,11 @@ func (h *Hub) Run() {
 				Type:      JOINED,
 				ID:        uuid.New().String(),
 				Sender:    client.Username,
-				Content:   client.Username + "has joined the chat",
+				Content:   fmt.Sprintf("%s has joined the chat", client.Username),
 				Timestamp: time.Now(),
 			}
 
-			h.Broadcast <- joinMsg // Broadcast to all Clients
+			h.Broadcast <- joinMsg
 
 		case client := <-h.Unregister: // when client unregisters
 			h.Mu.Lock()

@@ -81,9 +81,11 @@ func (c *Client) ReadPump() {
 				}
 			} else {
 				// broadcast message
+				fmt.Println("[else] > no message type matched, so broadcasting to all connected clients")
 				c.Hub.Broadcast <- &parsedMessage
 			}
 		default:
+			fmt.Println("[default] > no message type matched, so broadcasting to all connected clients")
 			c.Hub.Broadcast <- &parsedMessage
 		}
 	}

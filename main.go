@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	natAddr := "nats://192.168.1.125:4222"
+	natAddr := "nats://localhost:4222"
 	ns, err := nats.Connect(natAddr)
 	if err != nil {
 		fmt.Printf("error while connecting to nats instance: %v \n", err)

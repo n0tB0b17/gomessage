@@ -82,6 +82,7 @@ func ServeWS(h *models.Hub, w http.ResponseWriter, r *http.Request, natAddr stri
 			return
 		}
 
+		fmt.Printf("Direct message from: %+v \n", message)
 		if message.Sender == client.Username || message.Recipient == client.Username {
 			select {
 			case client.Send <- msg.Data:
