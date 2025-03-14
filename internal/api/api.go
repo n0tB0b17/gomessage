@@ -94,6 +94,10 @@ func (a *APIServer) Shutdown(ctx context.Context) error {
 	contxt, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
+	if a.mongo != nil {
+		a.mongo.Disconnect(ctx)
+	}
+
 	if a.s != nil {
 		return a.s.Shutdown(contxt)
 	}
