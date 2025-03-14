@@ -11,24 +11,38 @@ import (
 	"github.com/n0tB0b17/gomessage/internal/models"
 	"github.com/nats-io/nats.go"
 	"github.com/rs/cors"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/mongo/readpref"
 )
 
 type APIServer struct {
-	Port    int
-	NatAddr string
-	s       *http.Server
-	nats    *nats.Conn
+	Port      int
+	NatAddr   string
+	MongoURI  string
+	DBName    string
+	s         *http.Server
+	nats      *nats.Conn
+	mongo     *mongo.Client
+	userStore *models.UserStore
 }
 
 func NewApiServer(port int, nats *nats.Conn, natAddr string) *APIServer {
 	return &APIServer{
-		Port:    port,
-		NatAddr: natAddr,
-		nats:    nats,
+		Port:     port,
+		MongoURI: "mongodb://agentone:password123@localhost:27017",
+		DBName:   "fastmsg",
+		NatAddr:  natAddr,
+		nats:     nats,
 	}
 }
 
 func (a *APIServer) Start() error {
+	err := a.ConnectToDB()
+	if err != nil {
+		return err
+	}
+
 	addr := fmt.Sprintf(":%d", a.Port)
 	router := mux.NewRouter()
 	hub := models.GetNewHUB(a.nats)
@@ -70,7 +84,8 @@ func (a *APIServer) Start() error {
 	}
 
 	fmt.Printf("Starting API server on address: %s \n", addr)
-	fmt.Printf("Connected Nats server name is: %s \n", a.nats.ConnectedServerName())
+	fmt.Printf("Connected to NATS server, name is: %s \n", a.nats.ConnectedServerName())
+	fmt.Printf("Connected to Mongodb database: %s \n", a.MongoURI)
 	return a.s.ListenAndServe()
 }
 
@@ -79,5 +94,28 @@ func (a *APIServer) Shutdown(ctx context.Context) error {
 	contxt, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	return a.s.Shutdown(contxt)
+	if a.s != nil {
+		return a.s.Shutdown(contxt)
+	}
+
+	return fmt.Errorf("server is already down")
+}
+
+func (a *APIServer) ConnectToDB() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	client, err := mongo.Connect(options.Client().ApplyURI(a.MongoURI))
+	if err != nil {
+		fmt.Printf("error while connecting to mongodb server :%s >> err >> %v \n", a.MongoURI, err)
+		return err
+	}
+
+	if err := client.Ping(ctx, readpref.Primary()); err != nil {
+		return fmt.Errorf("unable to reach mongodb server at: %s \n", a.MongoURI)
+	}
+
+	a.mongo = client
+	a.userStore = models.NewUserStore(client, a.DBName)
+	return nil
 }

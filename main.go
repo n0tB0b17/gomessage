@@ -23,7 +23,7 @@ func main() {
 
 	server := api.NewApiServer(8888, ns, natAddr)
 	if err := server.Start(); err != nil {
-		panic(err)
+		fmt.Printf("error while connecting to mongodb database: %v \n", err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
