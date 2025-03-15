@@ -27,10 +27,10 @@ type APIServer struct {
 	userStore *models.UserStore
 }
 
-func NewApiServer(port int, nats *nats.Conn, natAddr string) *APIServer {
+func NewApiServer(port int, nats *nats.Conn, natAddr string, dbAddr string) *APIServer {
 	return &APIServer{
 		Port:     port,
-		MongoURI: "mongodb://agentone:password123@localhost:27017",
+		MongoURI: dbAddr,
 		DBName:   "fastmsg",
 		NatAddr:  natAddr,
 		nats:     nats,
@@ -48,8 +48,7 @@ func (a *APIServer) Start() error {
 	hub := models.GetNewHUB(a.nats)
 	go hub.Run()
 
-	router.HandleFunc("/api/v1/status", TestAPIHandler).Methods("GET")
-	router.HandleFunc("/api/v1/users", func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/api/v1/active/users", func(w http.ResponseWriter, r *http.Request) {
 		hub.Mu.RLock()
 		defer hub.Mu.RUnlock()
 
@@ -66,7 +65,9 @@ func (a *APIServer) Start() error {
 
 		json.NewEncoder(w).Encode(resp)
 	}).Methods("GET")
-
+	router.HandleFunc("/api/v1/status", TestAPIHandler).Methods("GET")
+	router.HandleFunc("/api/v1/user/register", a.RegisterUser).Methods(http.MethodPost)
+	router.HandleFunc("/api/v1/users", a.FetchRegisteredUsers).Methods(http.MethodGet)
 	router.HandleFunc("/api/v1/message/ws", func(w http.ResponseWriter, r *http.Request) {
 		ServeWS(hub, w, r, a.NatAddr)
 	})

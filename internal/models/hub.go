@@ -69,6 +69,7 @@ func (h *Hub) Run() {
 				h.Mu.Unlock()
 			}
 
+			// might distribute to all clients, or distribute to recipient
 		case msg := <-h.Broadcast: // when a message is broadcasted
 			docs, err := json.Marshal(msg)
 			if err != nil {
@@ -83,7 +84,7 @@ func (h *Hub) Run() {
 			if msg.Type == MESSAGE && msg.Recipient != "" {
 				// send message to specific recipient
 				h.Mu.RLock()
-				if client, ok := h.Clients[msg.Recipient]; ok { // issue here, as we are using msg.Recipient as key instead of id
+				if client, ok := h.Clients[msg.Recipient]; ok { // check if recipient is available in our map
 					select {
 					case client.Send <- docs:
 					default:
@@ -93,9 +94,17 @@ func (h *Hub) Run() {
 				}
 
 				// send to sender as confirmation
-				if client, ok := h.Clients[msg.Sender]; ok { // issue here, as we are using msg.Sender as key instead of id
+				if client, ok := h.Clients[msg.Sender]; ok { // check if sender is available in our map
+					confirmMSG := map[string]interface{}{
+						"is_send":   true,
+						"sender":    msg.Sender,
+						"recipient": msg.Recipient,
+						"message":   msg.Content,
+					}
+
+					confirm, _ := json.Marshal(confirmMSG)
 					select {
-					case client.Send <- docs:
+					case client.Send <- confirm:
 					default:
 						close(client.Send)
 						delete(h.Clients, client.Id)

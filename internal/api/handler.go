@@ -61,6 +61,7 @@ func ServeWS(h *models.Hub, w http.ResponseWriter, r *http.Request, natAddr stri
 		LastActive: time.Now(),
 	}
 
+	// list for events
 	_, err = ns.Subscribe("chat.Broadcast", func(msg *nats.Msg) {
 		fmt.Println("Received a chat.Broadcast message")
 		select {
@@ -77,12 +78,12 @@ func ServeWS(h *models.Hub, w http.ResponseWriter, r *http.Request, natAddr stri
 	}
 
 	_, err = ns.Subscribe("chat.direct", func(msg *nats.Msg) {
+		fmt.Println("Received a chat.direct message")
 		var message models.Message
 		if err := json.Unmarshal(msg.Data, &message); err != nil {
 			return
 		}
 
-		fmt.Printf("Direct message from: %+v \n", message)
 		if message.Sender == client.Username || message.Recipient == client.Username {
 			select {
 			case client.Send <- msg.Data:
@@ -93,7 +94,7 @@ func ServeWS(h *models.Hub, w http.ResponseWriter, r *http.Request, natAddr stri
 	})
 
 	if err != nil {
-		fmt.Printf("error while subscring to subject: %v \n", err)
+		fmt.Printf("error while subscribing to subject: %v \n", err)
 		conn.Close()
 		return
 	}

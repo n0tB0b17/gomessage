@@ -14,6 +14,7 @@ import (
 
 func main() {
 	natAddr := "nats://localhost:4222"
+	mongoAddr := "mongodb://agentone:password123@localhost:27017"
 	ns, err := nats.Connect(natAddr)
 	if err != nil {
 		fmt.Printf("error while connecting to nats instance: %v \n", err)
@@ -21,7 +22,7 @@ func main() {
 	}
 	defer ns.Close()
 
-	server := api.NewApiServer(8888, ns, natAddr)
+	server := api.NewApiServer(8888, ns, natAddr, mongoAddr)
 	if err := server.Start(); err != nil {
 		fmt.Printf("error while connecting to mongodb database: %v \n", err)
 	}

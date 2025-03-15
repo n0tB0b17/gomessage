@@ -29,6 +29,7 @@ type Client struct {
 	Mu         sync.Mutex
 }
 
+// read message from client's websocket connection to the hub
 func (c *Client) ReadPump() {
 	defer func() {
 		c.Hub.Unregister <- c
@@ -74,6 +75,7 @@ func (c *Client) ReadPump() {
 		// handle different message types, ie > client-to-client or client-to-broadcast
 		switch parsedMessage.Type {
 		case MESSAGE:
+			// publish to nats' direct subject
 			if parsedMessage.Recipient != "" {
 				docs, _ := json.Marshal(parsedMessage)
 				if err := c.NatsConn.Publish("chat.direct", docs); err != nil {
