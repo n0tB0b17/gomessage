@@ -100,7 +100,7 @@ func (hs *HealthService) GetHealth() HealthStatus {
 	defer hs.cacheMutex.RUnlock()
 
 	status := HealthStatus{
-		Status:       StatusUP,
+		Status:       StatusUP, // based off server's status
 		Dependencies: make(map[string]HealthCheckResult),
 		Timestamp:    time.Now(),
 	}
