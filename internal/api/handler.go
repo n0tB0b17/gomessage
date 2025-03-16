@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/n0tB0b17/gomessage/internal/healthcheck"
 	"github.com/n0tB0b17/gomessage/internal/models"
 	"github.com/nats-io/nats.go"
 )
@@ -25,9 +26,30 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func TestAPIHandler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Health check ok"))
+func (a *APIServer) HealthCheck(w http.ResponseWriter, r *http.Request) {
+	registry := healthcheck.NewHealthRegistry()
+	registry.Register(healthcheck.NewMongoChecker(a.mongo))
+	registry.Register(healthcheck.NewNatsChecker(a.nats))
+
+	healthService := healthcheck.NewHealthService(registry)
+	healthService.Start()
+	defer healthService.Stop()
+
+	var healthStatus healthcheck.HealthStatus
+	if r.URL.Query().Get("force") == "true" {
+		healthStatus = healthService.CheckNow(r.Context())
+	} else {
+		healthStatus = healthService.GetHealth()
+	}
+
+	if healthStatus.Status == healthcheck.StatusDown {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(healthStatus)
 }
 
 func ServeWS(h *models.Hub, w http.ResponseWriter, r *http.Request, natAddr string) {

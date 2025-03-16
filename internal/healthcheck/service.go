@@ -22,7 +22,7 @@ func NewHealthService(r *HealthRegistry) *HealthService {
 	return &HealthService{
 		registry:       r,
 		timeout:        5 * time.Second,
-		checkFrequency: 5 * time.Second,
+		checkFrequency: 10 * time.Second,
 		cache:          make(map[string]HealthCheckResult),
 		stopChannel:    make(chan struct{}),
 	}

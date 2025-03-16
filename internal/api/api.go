@@ -65,7 +65,7 @@ func (a *APIServer) Start() error {
 
 		json.NewEncoder(w).Encode(resp)
 	}).Methods("GET")
-	router.HandleFunc("/api/v1/status", TestAPIHandler).Methods("GET")
+	router.HandleFunc("/api/v1/status", a.HealthCheck).Methods("GET")
 	router.HandleFunc("/api/v1/user/register", a.RegisterUser).Methods(http.MethodPost)
 	router.HandleFunc("/api/v1/users", a.FetchRegisteredUsers).Methods(http.MethodGet)
 	router.HandleFunc("/api/v1/message/ws", func(w http.ResponseWriter, r *http.Request) {
