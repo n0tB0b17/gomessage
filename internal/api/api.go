@@ -68,6 +68,8 @@ func (a *APIServer) Start() error {
 	router.HandleFunc("/api/v1/status", a.HealthCheck).Methods("GET")
 	router.HandleFunc("/api/v1/user/register", a.RegisterUser).Methods(http.MethodPost)
 	router.HandleFunc("/api/v1/users", a.FetchRegisteredUsers).Methods(http.MethodGet)
+	router.HandleFunc("/api/v1/user/update", a.UpdateUsername).Methods(http.MethodPut)
+	router.HandleFunc("/api/v1/user/delete", a.DeleteUser).Methods(http.MethodDelete)
 	router.HandleFunc("/api/v1/message/ws", func(w http.ResponseWriter, r *http.Request) {
 		ServeWS(hub, w, r, a.NatAddr)
 	})

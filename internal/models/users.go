@@ -15,6 +15,7 @@ type User struct {
 	Username  string    `bson:"username" json:"username"`
 	CreatedAt time.Time `bson:"created_at" json:"created_at"`
 	LastSeen  time.Time `bson:"last_seen" json:"last_seen"`
+	UpdatedAt time.Time `bson:"updated_at,omitempty" json:"updated_at,omitempty"`
 }
 
 type UserStore struct {
@@ -63,11 +64,33 @@ func (us *UserStore) GetUserByUsername(ctx context.Context, username string) (*U
 	return &user, nil
 }
 
-func (us *UserStore) UpdateUser(ctx context.Context, username string) error {
+func (us *UserStore) GetUserByUserID(ctx context.Context, id string) (*User, error) {
+	var user User
+	err := us.collection.FindOne(ctx, bson.M{"_id": id}).Decode(&user)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, err
+		}
+	}
+
+	return &user, nil
+}
+
+func (us *UserStore) UpdateUserLastOnlineTime(ctx context.Context, username string) error {
 	_, err := us.collection.UpdateOne(
 		ctx,
 		bson.M{"username": username},
-		bson.M{"$set": bson.M{"last_seen": time.Now()}},
+		bson.M{"$set": bson.M{"last_seen": time.Now(), "updated_at": time.Now()}},
+	)
+
+	return err
+}
+
+func (us *UserStore) UpdateUsername(ctx context.Context, oldUsername, newUsername string) error {
+	_, err := us.collection.UpdateOne(
+		ctx,
+		bson.M{"username": oldUsername},
+		bson.M{"$set": bson.M{"username": newUsername, "updated_at": time.Now()}},
 	)
 
 	return err
@@ -89,6 +112,20 @@ func (us *UserStore) ListAllUsers(ctx context.Context, limit, skip int64) ([]Use
 		return nil, err
 	}
 	return users, nil
+}
+
+func (us *UserStore) DeleteUserByID(ctx context.Context, id string) (bool, error) {
+	resp, err := us.collection.DeleteOne(ctx, bson.M{"_id": id})
+
+	if err != nil {
+		return false, err
+	}
+
+	if resp.DeletedCount == 0 {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 func (us *UserStore) CountUserDocument(ctx context.Context) (int64, error) {
